@@ -77,4 +77,85 @@ router.get('/rapport', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/stats/notifications — alertes détaillées pour le panneau cloche
+router.get('/notifications', authenticateToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const [stocksSnap, chambresSnap, reservationsSnap, facturesSnap] = await Promise.all([
+      db.collection('stocks').get(),
+      db.collection('chambres').get(),
+      db.collection('reservations').get(),
+      db.collection('factures').get(),
+    ]);
+
+    const notifications = [];
+
+    // Stocks bas
+    stocksSnap.docs.forEach(d => {
+      const s = d.data();
+      if (s.quantite < s.minimum) {
+        notifications.push({
+          type: 'warning', icon: 'boxes',
+          title: 'Stock bas',
+          message: `${s.nom} : ${s.quantite} / ${s.minimum} ${s.unite || ''}`,
+        });
+      }
+    });
+
+    // Chambres en maintenance
+    chambresSnap.docs.forEach(d => {
+      const c = d.data();
+      if (c.statut === 'maintenance') {
+        notifications.push({
+          type: 'danger', icon: 'tools',
+          title: 'Chambre en maintenance',
+          message: `Chambre ${d.id} – vérification requise`,
+        });
+      }
+    });
+
+    // Arrivées aujourd'hui
+    reservationsSnap.docs.forEach(d => {
+      const r = d.data();
+      if (r.arrivee === today && ['confirmed', 'checked-in'].includes(r.statut)) {
+        notifications.push({
+          type: 'info', icon: 'plane-arrival',
+          title: 'Arrivée aujourd\'hui',
+          message: `Ch. ${r.chambreId} — ${r.nuits} nuit${r.nuits > 1 ? 's' : ''}`,
+        });
+      }
+    });
+
+    // Départs aujourd'hui
+    reservationsSnap.docs.forEach(d => {
+      const r = d.data();
+      if (r.depart === today && r.statut === 'checked-in') {
+        notifications.push({
+          type: 'warning', icon: 'plane-departure',
+          title: 'Départ aujourd\'hui',
+          message: `Ch. ${r.chambreId} — check-out à effectuer`,
+        });
+      }
+    });
+
+    // Factures partielles
+    const partielles = facturesSnap.docs.filter(d => d.data().statut === 'partielle');
+    if (partielles.length > 0) {
+      const label = partielles.length > 1 ? 'factures impayées' : 'facture impayée';
+      notifications.push({
+        type: 'danger', icon: 'file-invoice',
+        title: `${partielles.length} ${label}`,
+        message: partielles.map(d => {
+          const f = d.data();
+          return `${f.clientNom || 'Client'} – ${Number(f.reste || 0).toLocaleString('fr-FR')} FCA`;
+        }).slice(0, 3).join(' | '),
+      });
+    }
+
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

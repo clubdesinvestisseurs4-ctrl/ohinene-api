@@ -960,6 +960,69 @@ async function loadSessions() {
 
 document.getElementById('btn-filter-sessions').addEventListener('click', loadSessions);
 
+// ─── Notifications (cloche) ───────────────────────────────────────────
+async function loadNotifications() {
+  const list = document.getElementById('notif-list');
+  list.innerHTML = '<div class="notif-loading"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>';
+  try {
+    const notifications = await api('/stats/notifications');
+
+    // Mettre à jour le badge
+    const badge = document.getElementById('notif-badge');
+    if (notifications.length > 0) {
+      badge.textContent = notifications.length;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    if (!notifications.length) {
+      list.innerHTML = `
+        <div class="notif-empty">
+          <i class="fas fa-check-circle"></i>
+          Tout est en ordre, aucune alerte !
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = notifications.map(n => `
+      <div class="notif-item">
+        <div class="notif-icon ${n.type}">
+          <i class="fas fa-${n.icon}"></i>
+        </div>
+        <div class="notif-body">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-message" title="${n.message}">${n.message}</div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="notif-loading" style="color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> ${err.message}</div>`;
+  }
+}
+
+document.getElementById('notif-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const panel = document.getElementById('notif-panel');
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    loadNotifications();
+  } else {
+    panel.classList.add('hidden');
+  }
+});
+
+document.getElementById('notif-close').addEventListener('click', () => {
+  document.getElementById('notif-panel').classList.add('hidden');
+});
+
+document.addEventListener('click', e => {
+  const wrapper = document.querySelector('.notif-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    const panel = document.getElementById('notif-panel');
+    if (panel) panel.classList.add('hidden');
+  }
+});
+
 // ─── Rapports ─────────────────────────────────────────────────────────
 async function loadRapports() {
   // Valeurs par défaut : mois en cours
@@ -1085,7 +1148,7 @@ function initApp() {
 
   // Afficher l'onglet Sessions uniquement pour le directeur
   document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = state.user?.role === 'directeur' ? '' : 'none';
+    el.style.display = state.user?.role === 'directeur' ? 'flex' : 'none';
   });
 
   document.getElementById('login-screen').style.display = 'none';

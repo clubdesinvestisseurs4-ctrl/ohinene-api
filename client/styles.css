@@ -542,6 +542,108 @@ body {
 .kpi-value-big { font-size:2rem; font-weight:700; color:var(--primary); }
 .kpi-label-sm  { font-size:.82rem; color:var(--gray); }
 
+/* ── Panneau Notifications ───────────────────────────────────────── */
+.notif-wrapper { position:relative; }
+
+.notif-panel {
+  position:absolute;
+  top:calc(100% + 12px);
+  right:0;
+  width:340px;
+  background:var(--white);
+  border-radius:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.18);
+  border:1px solid var(--light);
+  z-index:2000;
+  overflow:hidden;
+}
+.notif-panel.hidden { display:none; }
+
+.notif-panel-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:13px 16px;
+  background:var(--primary);
+  color:var(--white);
+  font-size:.88rem;
+  font-weight:600;
+}
+.notif-close {
+  background:none;
+  border:none;
+  color:var(--white);
+  cursor:pointer;
+  font-size:.85rem;
+  padding:2px 6px;
+  opacity:.75;
+  border-radius:4px;
+  transition:opacity .15s;
+}
+.notif-close:hover { opacity:1; }
+
+.notif-list { max-height:400px; overflow-y:auto; }
+
+.notif-loading {
+  padding:24px 16px;
+  text-align:center;
+  color:var(--gray);
+  font-size:.86rem;
+}
+.notif-empty {
+  padding:32px 16px;
+  text-align:center;
+  color:var(--gray);
+  font-size:.86rem;
+}
+.notif-empty i {
+  display:block;
+  font-size:2rem;
+  margin-bottom:10px;
+  color:var(--success);
+}
+
+.notif-item {
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:12px 16px;
+  border-bottom:1px solid var(--light);
+  transition:background .15s;
+}
+.notif-item:last-child { border-bottom:none; }
+.notif-item:hover { background:#f7f9fc; }
+
+.notif-icon {
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.82rem;
+  flex-shrink:0;
+}
+.notif-icon.warning  { background:#fff3e0; color:#ef6c00; }
+.notif-icon.danger   { background:#ffebee; color:#c62828; }
+.notif-icon.info     { background:#e3f2fd; color:#1976d2; }
+.notif-icon.success  { background:#e8f5e9; color:#2e7d32; }
+
+.notif-body { flex:1; min-width:0; }
+.notif-title {
+  font-weight:600;
+  font-size:.84rem;
+  color:var(--dark);
+  margin-bottom:2px;
+}
+.notif-message {
+  font-size:.8rem;
+  color:var(--gray);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 /* ── Offline banner ──────────────────────────────────────────────── */
 .offline-banner {
   display:none;

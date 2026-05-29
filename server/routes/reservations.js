@@ -7,14 +7,11 @@ const router = express.Router();
 // GET /api/reservations
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    let query = db.collection('reservations').orderBy('createdAt', 'desc');
     const { statut, date } = req.query;
-    if (statut) query = query.where('statut', '==', statut);
-    const snap = await query.get();
+    const snap = await db.collection('reservations').orderBy('createdAt', 'desc').get();
     let reservations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (date) {
-      reservations = reservations.filter(r => r.arrivee === date || r.depart === date);
-    }
+    if (statut) reservations = reservations.filter(r => r.statut === statut);
+    if (date)   reservations = reservations.filter(r => r.arrivee === date || r.depart === date);
     res.json(reservations);
   } catch (err) {
     res.status(500).json({ error: err.message });
