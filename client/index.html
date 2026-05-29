@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a5f7a">
+  <meta name="description" content="Application de gestion interne – Hôtel Ohinene">
+  <title>Hôtel Ohinene – Gestion</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ══ Offline banner ══════════════════════════════════════════════ -->
+<div class="offline-banner"><i class="fas fa-wifi-slash"></i> Mode hors ligne – certaines données peuvent être indisponibles</div>
+
+<!-- ══ Loader ══════════════════════════════════════════════════════ -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+</div>
+
+<!-- ══ Toast container ════════════════════════════════════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ══ Login ═══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <i class="fas fa-hotel"></i>
+      <h1>HÔTEL OHINENE</h1>
+      <p>Application de Gestion Interne</p>
+    </div>
+    <form id="login-form">
+      <div class="form-group">
+        <label for="login-username">Identifiant</label>
+        <input type="text" id="login-username" placeholder="Votre identifiant" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="form-error" style="display:none"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px; justify-content:center; padding:11px;" id="login-btn">
+        <i class="fas fa-sign-in-alt"></i> Se connecter
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ══ App ══════════════════════════════════════════════════════════ -->
+<div id="app-screen" style="display:none">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <i class="fas fa-hotel"></i>
+      <span>OHINENE</span>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item active" data-page="dashboard">
+        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+      </a>
+      <a class="nav-item" data-page="reception">
+        <i class="fas fa-concierge-bell"></i><span>Réception</span>
+      </a>
+      <a class="nav-item" data-page="chambres">
+        <i class="fas fa-bed"></i><span>Chambres</span>
+      </a>
+      <a class="nav-item" data-page="clients">
+        <i class="fas fa-users"></i><span>Clients</span>
+      </a>
+      <a class="nav-item" data-page="facturation">
+        <i class="fas fa-receipt"></i><span>Facturation</span>
+      </a>
+      <a class="nav-item" data-page="stocks">
+        <i class="fas fa-boxes"></i><span>Stocks</span>
+      </a>
+      <a class="nav-item" data-page="rapports">
+        <i class="fas fa-chart-bar"></i><span>Rapports</span>
+      </a>
+    </nav>
+    <div class="user-info">
+      <i class="fas fa-user-circle" style="font-size:1.3rem"></i>
+      <div>
+        <div class="user-name" id="sidebar-user-name">—</div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+      <button class="btn-logout" id="logout-btn" style="margin-left:auto">
+        <i class="fas fa-power-off"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <header class="top-header">
+      <h1 id="page-title">Dashboard</h1>
+      <div class="header-right">
+        <span class="date-badge" id="header-date"></span>
+        <button class="btn-notif" id="notif-btn" title="Alertes">
+          <i class="fas fa-bell"></i>
+          <span class="badge" id="notif-badge" style="display:none">0</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content-area">
+
+      <!-- ── DASHBOARD ─────────────────────────────────────────── -->
+      <section id="page-dashboard" class="page active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-bed"></i></div>
+            <div><div class="stat-value" id="stat-occupation">—</div><div class="stat-label">Occupation</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-users"></i></div>
+            <div><div class="stat-value" id="stat-clients">—</div><div class="stat-label">Clients présents</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-money-bill-wave"></i></div>
+            <div><div class="stat-value" id="stat-revenue">—</div><div class="stat-label">Revenus du jour (FCA)</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-exclamation-circle"></i></div>
+            <div><div class="stat-value" id="stat-alertes">—</div><div class="stat-label">Alertes</div></div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-th"></i> Planning chambres</div>
+            <div class="room-mini-grid" id="dash-room-grid"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-plane-arrival"></i> Arrivées aujourd'hui</div>
+            <div class="list-scroll" id="dash-arrivees"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-plane-departure"></i> Départs aujourd'hui</div>
+            <div class="list-scroll" id="dash-departs"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── RÉCEPTION ─────────────────────────────────────────── -->
+      <section id="page-reception" class="page">
+        <div class="page-actions">
+          <button class="btn btn-primary" id="btn-new-reservation">
+            <i class="fas fa-plus"></i> Nouvelle réservation
+          </button>
+          <button class="btn btn-success" id="btn-checkin">
+            <i class="fas fa-sign-in-alt"></i> Check-in
+          </button>
+          <button class="btn btn-warning" id="btn-checkout">
+            <i class="fas fa-sign-out-alt"></i> Check-out
+          </button>
+        </div>
+        <div class="filters">
+          <select id="filter-resa-statut">
+            <option value="">Tous statuts</option>
+            <option value="confirmed">Confirmées</option>
+            <option value="checked-in">En cours</option>
+            <option value="checked-out">Terminées</option>
+            <option value="annulee">Annulées</option>
+          </select>
+          <input type="date" id="filter-resa-date" placeholder="Filtrer par date">
+          <button class="btn btn-secondary" id="btn-filter-resa"><i class="fas fa-filter"></i> Filtrer</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr>
+              <th>N° Rés.</th><th>Client</th><th>Chambre</th>
+              <th>Arrivée</th><th>Départ</th><th>Nuits</th>
+              <th>Prix (FCA)</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="reservations-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── CHAMBRES ──────────────────────────────────────────── -->
+      <section id="page-chambres" class="page">
+        <div class="filters">
+          <select id="filter-etage">
+            <option value="">Tous les étages</option>
+            <option value="1">Étage 1</option>
+            <option value="2">Étage 2</option>
+            <option value="3">Étage 3</option>
+          </select>
+          <select id="filter-statut">
+            <option value="">Tous les statuts</option>
+            <option value="available">Disponible</option>
+            <option value="occupied">Occupée</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="cleaning">Nettoyage</option>
+          </select>
+          <select id="filter-type">
+            <option value="">Tous les types</option>
+            <option value="Standard">Standard</option>
+            <option value="Deluxe">Deluxe</option>
+            <option value="Suite">Suite</option>
+          </select>
+          <button class="btn btn-secondary" id="btn-filter-chambres"><i class="fas fa-filter"></i></button>
+        </div>
+        <div class="rooms-grid" id="rooms-grid"></div>
+      </section>
+
+      <!-- ── CLIENTS ───────────────────────────────────────────── -->
+      <section id="page-clients" class="page">
+        <div class="page-actions">
+          <input type="text" class="search-input" id="search-client" placeholder="Rechercher un client…" style="flex:1;min-width:200px;max-width:360px">
+          <button class="btn btn-secondary" id="btn-search-client"><i class="fas fa-search"></i></button>
+          <button class="btn btn-primary" id="btn-new-client"><i class="fas fa-plus"></i> Nouveau client</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr>
+              <th>ID</th><th>Nom</th><th>Téléphone</th><th>Email</th>
+              <th>Visites</th><th>Dépenses (FCA)</th><th>Niveau</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="clients-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── FACTURATION ───────────────────────────────────────── -->
+      <section id="page-facturation" class="page">
+        <div class="filters">
+          <label style="font-size:.85rem;font-weight:600">Du</label>
+          <input type="date" id="filter-fact-start">
+          <label style="font-size:.85rem;font-weight:600">Au</label>
+          <input type="date" id="filter-fact-end">
+          <button class="btn btn-secondary" id="btn-filter-fact"><i class="fas fa-filter"></i> Filtrer</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr>
+              <th>N° Facture</th><th>Date</th><th>Client</th><th>Chambre</th>
+              <th>Nuits</th><th>Total (FCA)</th><th>Mode</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="factures-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── STOCKS ────────────────────────────────────────────── -->
+      <section id="page-stocks" class="page">
+        <div class="stocks-header">
+          <div class="alerts-box">
+            <div class="card-title"><i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> Alertes stock bas</div>
+            <div id="stock-alerts-list"><em style="color:var(--gray);font-size:.85rem">Chargement…</em></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <button class="btn btn-primary" id="btn-new-stock"><i class="fas fa-plus"></i> Ajouter article</button>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr>
+              <th>Produit</th><th>Catégorie</th><th>Quantité</th>
+              <th>Minimum</th><th>Unité</th><th>État</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="stocks-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── RAPPORTS ──────────────────────────────────────────── -->
+      <section id="page-rapports" class="page">
+        <div class="page-actions">
+          <input type="date" id="rapp-start"> <span>–</span>
+          <input type="date" id="rapp-end">
+          <button class="btn btn-primary" id="btn-load-rapport"><i class="fas fa-chart-line"></i> Générer</button>
+        </div>
+        <div class="rapports-grid">
+          <div class="rapport-card">
+            <h3><i class="fas fa-bed"></i> Occupation</h3>
+            <div class="kpi-value-big" id="rapp-occupation">—</div>
+            <div class="kpi-label-sm">Taux d'occupation</div>
+            <div class="kpi-list" id="rapp-occupation-detail" style="margin-top:14px"></div>
+          </div>
+          <div class="rapport-card">
+            <h3><i class="fas fa-money-bill"></i> Revenus</h3>
+            <div class="kpi-value-big" id="rapp-revenus">—</div>
+            <div class="kpi-label-sm">Total FCA</div>
+            <div class="kpi-list" id="rapp-revenus-detail" style="margin-top:14px"></div>
+          </div>
+          <div class="rapport-card">
+            <h3><i class="fas fa-trophy"></i> Top Clients</h3>
+            <div id="top-clients-list"></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content-area -->
+  </main>
+</div><!-- /app-screen -->
+
+<!-- ══ MODALS ══════════════════════════════════════════════════════ -->
+
+<!-- Modal Réservation -->
+<div class="modal-overlay hidden" id="modal-reservation">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-resa-title">Nouvelle réservation</h2>
+      <button class="modal-close" data-modal="reservation">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-reservation">
+        <input type="hidden" id="resa-id">
+        <div class="form-group">
+          <label>Client *</label>
+          <select id="resa-client" required><option value="">Sélectionner un client</option></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date d'arrivée *</label>
+            <input type="date" id="resa-arrivee" required>
+          </div>
+          <div class="form-group">
+            <label>Date de départ *</label>
+            <input type="date" id="resa-depart" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Chambre *</label>
+            <select id="resa-chambre" required><option value="">Sélectionner</option></select>
+          </div>
+          <div class="form-group">
+            <label>Personnes</label>
+            <input type="number" id="resa-personnes" min="1" max="6" value="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prix total (FCA)</label>
+            <input type="number" id="resa-prix" min="0" placeholder="Calculé auto">
+          </div>
+          <div class="form-group">
+            <label>Acompte (FCA)</label>
+            <input type="number" id="resa-acompte" min="0" value="0">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal="reservation">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-resa"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Client -->
+<div class="modal-overlay hidden" id="modal-client">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-client-title">Nouveau client</h2>
+      <button class="modal-close" data-modal="client">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-client">
+        <input type="hidden" id="client-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input type="text" id="client-nom" required placeholder="NOM">
+          </div>
+          <div class="form-group">
+            <label>Prénom *</label>
+            <input type="text" id="client-prenom" required placeholder="Prénom">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Téléphone *</label>
+          <input type="tel" id="client-tel" required placeholder="+225 0X XX XX XX XX">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="client-email" placeholder="email@exemple.com">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type de pièce</label>
+            <select id="client-piece">
+              <option value="cni">CNI</option>
+              <option value="passeport">Passeport</option>
+              <option value="permis">Permis</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>N° pièce</label>
+            <input type="text" id="client-num-piece" placeholder="XXXXXXXXX">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal="client">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-client"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Chambre (détail / changement statut) -->
+<div class="modal-overlay hidden" id="modal-chambre">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-chambre-title">Chambre</h2>
+      <button class="modal-close" data-modal="chambre">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-chambre-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal="chambre">Fermer</button>
+      <button class="btn btn-primary" id="btn-save-chambre"><i class="fas fa-save"></i> Mettre à jour</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Stock -->
+<div class="modal-overlay hidden" id="modal-stock">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-stock-title">Article de stock</h2>
+      <button class="modal-close" data-modal="stock">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-stock">
+        <input type="hidden" id="stock-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input type="text" id="stock-nom" required>
+          </div>
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select id="stock-categorie">
+              <option>Hygiène</option>
+              <option>Linge</option>
+              <option>Boisson</option>
+              <option>Alimentation</option>
+              <option>Nettoyage</option>
+              <option>Autre</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Quantité actuelle *</label>
+            <input type="number" id="stock-quantite" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Stock minimum *</label>
+            <input type="number" id="stock-minimum" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Unité</label>
+            <input type="text" id="stock-unite" value="pièces">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal="stock">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-stock"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>

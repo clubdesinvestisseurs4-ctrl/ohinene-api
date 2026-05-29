@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Toutes les lectures/écritures passent par le backend (Firebase Admin SDK).
+    // Le frontend ne lit PAS directement Firestore — il passe par l'API Express.
+    // On bloque donc tout accès direct depuis le client web.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
