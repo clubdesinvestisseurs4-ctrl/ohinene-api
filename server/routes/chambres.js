@@ -32,6 +32,41 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/chambres — créer une chambre individuelle
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const { numero, etage, type, prix, statut = 'available' } = req.body;
+    if (!numero || !etage || !type || !prix) {
+      return res.status(400).json({ error: 'Champs obligatoires : numero, etage, type, prix' });
+    }
+    const typesValides = ['Standard', 'Deluxe', 'Suite'];
+    if (!typesValides.includes(type)) {
+      return res.status(400).json({ error: 'Type invalide (Standard, Deluxe, Suite)' });
+    }
+    const statutsValides = ['available', 'occupied', 'maintenance', 'cleaning', 'reserved'];
+    if (!statutsValides.includes(statut)) {
+      return res.status(400).json({ error: 'Statut invalide' });
+    }
+    const docId = `CH${String(Number(numero)).padStart(2, '0')}`;
+    const existing = await db.collection('chambres').doc(docId).get();
+    if (existing.exists) {
+      return res.status(409).json({ error: `La chambre ${docId} existe déjà` });
+    }
+    const data = {
+      numero: Number(numero),
+      etage: Number(etage),
+      type,
+      prix: Number(prix),
+      statut,
+      createdAt: new Date().toISOString()
+    };
+    await db.collection('chambres').doc(docId).set(data);
+    res.status(201).json({ id: docId, ...data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/chambres/seed — initialise les 15 chambres
 router.post('/seed', authenticateToken, async (req, res) => {
   try {

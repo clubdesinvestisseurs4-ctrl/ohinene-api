@@ -318,6 +318,47 @@ document.getElementById('btn-save-chambre').addEventListener('click', async () =
   }
 });
 
+document.getElementById('btn-new-chambre').addEventListener('click', () => {
+  document.getElementById('form-new-chambre').reset();
+  openModal('new-chambre');
+});
+
+document.getElementById('btn-save-new-chambre').addEventListener('click', async () => {
+  const numero = document.getElementById('new-chambre-numero').value;
+  const etage  = document.getElementById('new-chambre-etage').value;
+  const type   = document.getElementById('new-chambre-type').value;
+  const prix   = document.getElementById('new-chambre-prix').value;
+  if (!numero || !etage || !type || !prix) {
+    toast('Tous les champs sont obligatoires', 'warning');
+    return;
+  }
+  showLoader();
+  try {
+    await api('/chambres', { method: 'POST', body: JSON.stringify({ numero: Number(numero), etage: Number(etage), type, prix: Number(prix) }) });
+    toast('Chambre créée avec succès', 'success');
+    closeModal('new-chambre');
+    await loadChambres();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+});
+
+document.getElementById('btn-seed-chambres').addEventListener('click', async () => {
+  if (!confirm('Initialiser les 15 chambres par défaut (Étage 1-3) ? Cette action ne peut être faite qu\'une seule fois.')) return;
+  showLoader();
+  try {
+    await api('/chambres/seed', { method: 'POST' });
+    toast('15 chambres initialisées avec succès', 'success');
+    await loadChambres();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+});
+
 // ─── Réservations ─────────────────────────────────────────────────────
 async function loadReservations() {
   showLoader();

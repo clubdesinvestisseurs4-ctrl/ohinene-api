@@ -185,6 +185,10 @@
 
       <!-- ── CHAMBRES ──────────────────────────────────────────── -->
       <section id="page-chambres" class="page">
+        <div class="page-actions">
+          <button class="btn btn-primary" id="btn-new-chambre"><i class="fas fa-plus"></i> Ajouter une chambre</button>
+          <button class="btn btn-secondary" id="btn-seed-chambres"><i class="fas fa-layer-group"></i> Initialiser 15 chambres</button>
+        </div>
         <div class="filters">
           <select id="filter-etage">
             <option value="">Tous les étages</option>
@@ -403,6 +407,48 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" data-modal="client">Annuler</button>
       <button class="btn btn-primary" id="btn-save-client"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle Chambre -->
+<div class="modal-overlay hidden" id="modal-new-chambre">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Nouvelle chambre</h2>
+      <button class="modal-close" data-modal="new-chambre">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-new-chambre">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Numéro *</label>
+            <input type="number" id="new-chambre-numero" min="1" max="999" required placeholder="Ex: 101">
+          </div>
+          <div class="form-group">
+            <label>Étage *</label>
+            <input type="number" id="new-chambre-etage" min="1" max="20" required placeholder="Ex: 1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type *</label>
+            <select id="new-chambre-type" required>
+              <option value="Standard">Standard</option>
+              <option value="Deluxe">Deluxe</option>
+              <option value="Suite">Suite</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prix / nuit (FCA) *</label>
+            <input type="number" id="new-chambre-prix" min="1" required placeholder="Ex: 25000">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal="new-chambre">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-new-chambre"><i class="fas fa-save"></i> Créer</button>
     </div>
   </div>
 </div>
