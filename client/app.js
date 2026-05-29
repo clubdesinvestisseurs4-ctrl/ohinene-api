@@ -133,7 +133,16 @@ const PAGE_TITLES = {
   sessions:    'Journal des Sessions',
 };
 
+const PAGE_ACCESS = {
+  directeur:      ['dashboard', 'reception', 'chambres', 'clients', 'facturation', 'stocks', 'rapports', 'sessions'],
+  manager:        ['dashboard', 'chambres', 'stocks'],
+  receptionniste: ['dashboard', 'reception', 'clients', 'facturation'],
+};
+
 function showPage(name) {
+  const allowedPages = PAGE_ACCESS[state.user?.role] || ['dashboard'];
+  if (!allowedPages.includes(name)) name = 'dashboard';
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
 
@@ -1158,9 +1167,10 @@ function initApp() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  // Afficher l'onglet Sessions uniquement pour le directeur
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = state.user?.role === 'directeur' ? 'flex' : 'none';
+  // Navigation : afficher uniquement les onglets autorisés selon le rôle
+  const allowedPages = PAGE_ACCESS[state.user?.role] || ['dashboard'];
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    el.style.display = allowedPages.includes(el.dataset.page) ? 'flex' : 'none';
   });
 
   // Cloche notifications : directeur uniquement
