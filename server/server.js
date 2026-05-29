@@ -8,6 +8,9 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Middlewares ───────────────────────────────────────────────────────────────
 
+// Render (et autres reverse proxies) injectent X-Forwarded-For
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: [
     process.env.CLIENT_URL || 'http://localhost:5500',

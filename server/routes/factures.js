@@ -85,4 +85,33 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+// PATCH /api/factures/:id — enregistrer paiement complet (partielle → payée)
+router.patch('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { modePaiement } = req.body;
+    const ref = db.collection('factures').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Facture introuvable' });
+    const update = { statut: 'payee', reste: 0, updatedAt: new Date().toISOString() };
+    if (modePaiement) update.modePaiement = modePaiement;
+    await ref.update(update);
+    res.json({ id: req.params.id, ...doc.data(), ...update });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/factures/:id
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const ref = db.collection('factures').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Facture introuvable' });
+    await ref.delete();
+    res.json({ message: 'Facture supprimée' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

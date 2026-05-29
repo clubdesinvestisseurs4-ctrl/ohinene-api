@@ -84,7 +84,8 @@ async function login(username, password) {
   localStorage.setItem('ohinene_user',  JSON.stringify(data.user));
 }
 
-function logout() {
+async function logout() {
+  try { await api('/auth/logout', { method: 'POST' }); } catch (_) {}
   state.token = null;
   state.user  = null;
   localStorage.removeItem('ohinene_token');
@@ -126,6 +127,7 @@ const PAGE_TITLES = {
   facturation: 'Facturation',
   stocks:      'Stocks',
   rapports:    'Rapports',
+  sessions:    'Journal des Sessions',
 };
 
 function showPage(name) {
@@ -149,6 +151,7 @@ function showPage(name) {
     case 'facturation': loadFactures(); break;
     case 'stocks':      loadStocks(); break;
     case 'rapports':    loadRapports(); break;
+    case 'sessions':    loadSessions(); break;
   }
 }
 
@@ -618,8 +621,9 @@ document.getElementById('btn-save-client').addEventListener('click', async () =>
 async function loadFactures() {
   showLoader();
   try {
-    const start = document.getElementById('filter-fact-start').value;
-    const end   = document.getElementById('filter-fact-end').value;
+    const start  = document.getElementById('filter-fact-start').value;
+    const end    = document.getElementById('filter-fact-end').value;
+    const statut = document.getElementById('filter-fact-statut').value;
     let path = '/factures';
     const params = new URLSearchParams();
     if (start) params.set('dateStart', start);
@@ -627,12 +631,15 @@ async function loadFactures() {
     if (params.toString()) path += '?' + params.toString();
 
     state.factures = await api(path);
+    let factures = state.factures;
+    if (statut) factures = factures.filter(f => f.statut === statut);
+
     const tbody = document.getElementById('factures-tbody');
-    if (!state.factures.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:24px">Aucune facture</td></tr>';
+    if (!factures.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Aucune facture</td></tr>';
       return;
     }
-    tbody.innerHTML = state.factures.map(f => `
+    tbody.innerHTML = factures.map(f => `
       <tr>
         <td><code style="font-size:.78rem">${f.id?.slice(-6)}</code></td>
         <td>${fmtDate(f.date)}</td>
@@ -640,10 +647,13 @@ async function loadFactures() {
         <td>${f.chambreId}</td>
         <td>${f.nuits}</td>
         <td><strong>${fmtCurrency(f.total)}</strong></td>
+        <td style="color:${f.reste > 0 ? 'var(--danger)' : 'var(--success)'}">${fmtCurrency(f.reste)}</td>
         <td>${f.modePaiement || '—'}</td>
-        <td><span class="status-badge ${f.statut === 'payee' ? 'available' : 'reserved'}">${f.statut}</span></td>
+        <td><span class="status-badge ${f.statut === 'payee' ? 'available' : 'reserved'}">${f.statut === 'payee' ? 'Payée' : 'Partielle'}</span></td>
         <td class="actions-cell">
           <button class="btn btn-sm btn-secondary" onclick="printFacture('${f.id}')" title="Imprimer"><i class="fas fa-print"></i></button>
+          ${f.statut === 'partielle' ? `<button class="btn btn-sm btn-primary" onclick="openPayFacture('${f.id}')" title="Marquer payée"><i class="fas fa-check"></i></button>` : ''}
+          <button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="deleteFacture('${f.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
         </td>
       </tr>`).join('');
   } catch (err) {
@@ -654,6 +664,86 @@ async function loadFactures() {
 }
 
 document.getElementById('btn-filter-fact').addEventListener('click', loadFactures);
+
+document.getElementById('btn-new-facture').addEventListener('click', async () => {
+  showLoader();
+  try {
+    const [reservations, clients] = await Promise.all([
+      api('/reservations?statut=checked-in'),
+      state.clients.length ? Promise.resolve(state.clients) : api('/clients'),
+    ]);
+    state.clients = clients;
+    const sel = document.getElementById('new-facture-resa');
+    if (!reservations.length) {
+      sel.innerHTML = '<option value="">Aucune réservation en cours</option>';
+    } else {
+      const clientMap = Object.fromEntries(clients.map(c => [c.id, `${c.nom} ${c.prenom}`]));
+      sel.innerHTML = reservations.map(r =>
+        `<option value="${r.id}">${r.chambreId} – ${clientMap[r.clientId] || r.clientId} (${fmtDate(r.arrivee)} → ${fmtDate(r.depart)}, ${r.nuits} nuit${r.nuits > 1 ? 's' : ''})</option>`
+      ).join('');
+    }
+    openModal('new-facture');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+});
+
+document.getElementById('btn-save-new-facture').addEventListener('click', async () => {
+  const reservationId = document.getElementById('new-facture-resa').value;
+  const modePaiement  = document.getElementById('new-facture-mode').value;
+  if (!reservationId) { toast('Sélectionnez une réservation', 'warning'); return; }
+  showLoader();
+  try {
+    await api('/factures', { method: 'POST', body: JSON.stringify({ reservationId, modePaiement }) });
+    toast('Facture générée avec succès', 'success');
+    closeModal('new-facture');
+    await loadFactures();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+});
+
+window.openPayFacture = id => {
+  const f = state.factures.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('pay-facture-id').value = id;
+  document.getElementById('pay-facture-info').textContent = `Reste à payer : ${fmtCurrency(f.reste)} FCA pour ${f.clientNom}`;
+  openModal('pay-facture');
+};
+
+document.getElementById('btn-confirm-pay-facture').addEventListener('click', async () => {
+  const id   = document.getElementById('pay-facture-id').value;
+  const mode = document.getElementById('pay-facture-mode').value;
+  showLoader();
+  try {
+    await api(`/factures/${id}`, { method: 'PATCH', body: JSON.stringify({ modePaiement: mode }) });
+    toast('Facture marquée comme payée', 'success');
+    closeModal('pay-facture');
+    await loadFactures();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+});
+
+window.deleteFacture = async id => {
+  if (!confirm('Supprimer cette facture définitivement ?')) return;
+  showLoader();
+  try {
+    await api(`/factures/${id}`, { method: 'DELETE' });
+    toast('Facture supprimée', 'success');
+    await loadFactures();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+};
 
 window.printFacture = id => {
   const f = state.factures.find(x => x.id === id);
@@ -793,6 +883,76 @@ document.getElementById('btn-save-stock').addEventListener('click', async () => 
   finally { hideLoader(); }
 });
 
+// ─── Sessions ─────────────────────────────────────────────────────────
+async function loadSessions() {
+  showLoader();
+  try {
+    const debut = document.getElementById('filter-sess-start').value;
+    const fin   = document.getElementById('filter-sess-end').value;
+    const user  = document.getElementById('filter-sess-user').value;
+    const params = new URLSearchParams();
+    if (debut) params.set('debut', debut);
+    if (fin)   params.set('fin', fin);
+    if (user)  params.set('username', user);
+    const sessions = await api('/auth/sessions?' + params.toString());
+
+    // Compteurs
+    const logins  = sessions.filter(s => s.action === 'login').length;
+    const logouts = sessions.filter(s => s.action === 'logout').length;
+    const users   = new Set(sessions.map(s => s.username)).size;
+    document.getElementById('sess-count-login').textContent  = logins;
+    document.getElementById('sess-count-logout').textContent = logouts;
+    document.getElementById('sess-count-users').textContent  = users;
+
+    // Peupler le filtre utilisateurs (la première fois)
+    const selUser = document.getElementById('filter-sess-user');
+    if (selUser.options.length <= 1) {
+      const usernames = [...new Set(sessions.map(s => s.username))].sort();
+      usernames.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u;
+        opt.textContent = u;
+        selUser.appendChild(opt);
+      });
+      if (user) selUser.value = user;
+    }
+
+    const tbody = document.getElementById('sessions-tbody');
+    if (!sessions.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:24px">Aucune session enregistrée</td></tr>';
+      return;
+    }
+
+    const roleLabel = { directeur: 'Directeur', manager: 'Manager', receptionniste: 'Réceptionniste' };
+    tbody.innerHTML = sessions.map(s => {
+      const isLogin = s.action === 'login';
+      const dt = new Date(s.timestamp);
+      const dateStr = dt.toLocaleDateString('fr-FR');
+      const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `
+        <tr>
+          <td><strong>${dateStr}</strong> <span style="color:var(--gray)">${timeStr}</span></td>
+          <td><code>${s.username}</code></td>
+          <td>${s.nom || '—'}</td>
+          <td><span class="status-badge ${s.role === 'directeur' ? 'occupied' : s.role === 'manager' ? 'reserved' : 'available'}">${roleLabel[s.role] || s.role}</span></td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;color:${isLogin ? 'var(--success)' : 'var(--danger)'}">
+              <i class="fas fa-${isLogin ? 'sign-in-alt' : 'sign-out-alt'}"></i>
+              ${isLogin ? 'Connexion' : 'Déconnexion'}
+            </span>
+          </td>
+          <td><code style="font-size:.78rem;color:var(--gray)">${s.ip || '—'}</code></td>
+        </tr>`;
+    }).join('');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+document.getElementById('btn-filter-sessions').addEventListener('click', loadSessions);
+
 // ─── Rapports ─────────────────────────────────────────────────────────
 async function loadRapports() {
   // Valeurs par défaut : mois en cours
@@ -804,6 +964,8 @@ async function loadRapports() {
   await fetchRapports();
 }
 
+let lastRapport = null;
+
 async function fetchRapports() {
   showLoader();
   try {
@@ -814,26 +976,46 @@ async function fetchRapports() {
       state.clients.length ? Promise.resolve(state.clients) : api('/clients'),
     ]);
     state.clients = clients;
+    lastRapport = rapport;
 
+    // ─ Carte Factures
+    document.getElementById('rapp-occupation').textContent = rapport.nombre;
+    document.getElementById('rapp-occupation-detail').innerHTML = `
+      <div class="kpi-item"><span>Payées</span><strong style="color:var(--success)">${rapport.parStatut?.payee || 0}</strong></div>
+      <div class="kpi-item"><span>Partielles</span><strong style="color:var(--danger)">${rapport.parStatut?.partielle || 0}</strong></div>
+      <div class="kpi-item"><span>Panier moyen</span><strong>${fmtCurrency(rapport.moyenne)} FCA</strong></div>`;
+
+    // ─ Carte Revenus
     document.getElementById('rapp-revenus').textContent = fmtCurrency(rapport.total);
-    document.getElementById('rapp-occupation').textContent = rapport.nombre + ' rés.';
+    document.getElementById('rapp-revenus-detail').innerHTML = Object.entries(rapport.parMode || {}).map(([m, v]) =>
+      `<div class="kpi-item"><span>${m}</span><strong>${fmtCurrency(v)} FCA</strong></div>`
+    ).join('') || '<p style="color:var(--gray);font-size:.85rem">Aucune donnée</p>';
 
-    document.getElementById('rapp-revenus-detail').innerHTML = `
-      <div class="kpi-list">
-        <div class="kpi-item"><span>Nombre de factures</span><strong>${rapport.nombre}</strong></div>
-        <div class="kpi-item"><span>Panier moyen</span><strong>${fmtCurrency(rapport.moyenne)} FCA</strong></div>
-        ${Object.entries(rapport.parMode||{}).map(([m,v]) =>
-          `<div class="kpi-item"><span>Mode: ${m}</span><strong>${fmtCurrency(v)} FCA</strong></div>`
-        ).join('')}
-      </div>`;
-
-    // Top clients
-    const sorted = [...clients].sort((a,b) => (b.depense||0)-(a.depense||0)).slice(0,5);
-    document.getElementById('top-clients-list').innerHTML = sorted.map((c,i) => `
+    // ─ Top clients
+    const sorted = [...clients].sort((a, b) => (b.depense || 0) - (a.depense || 0)).slice(0, 5);
+    document.getElementById('top-clients-list').innerHTML = sorted.map((c, i) => `
       <div class="kpi-item" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--light);font-size:.87rem">
         <span><strong>#${i+1}</strong> ${c.nom} ${c.prenom}</span>
-        <strong>${fmtCurrency(c.depense||0)} FCA</strong>
+        <strong>${fmtCurrency(c.depense || 0)} FCA</strong>
       </div>`).join('') || '<p style="color:var(--gray)">Aucun client</p>';
+
+    // ─ Tableau détail
+    const tbody = document.getElementById('rapport-factures-tbody');
+    if (!rapport.factures?.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Aucune facture sur cette période</td></tr>';
+    } else {
+      tbody.innerHTML = rapport.factures.map(f => `
+        <tr>
+          <td><code style="font-size:.78rem">${f.id?.slice(-6)}</code></td>
+          <td>${fmtDate(f.date)}</td>
+          <td>${f.clientNom || f.clientId}</td>
+          <td>${f.chambreId}</td>
+          <td>${f.nuits}</td>
+          <td><strong>${fmtCurrency(f.total)}</strong></td>
+          <td>${f.modePaiement || '—'}</td>
+          <td><span class="status-badge ${f.statut === 'payee' ? 'available' : 'reserved'}">${f.statut === 'payee' ? 'Payée' : 'Partielle'}</span></td>
+        </tr>`).join('');
+    }
 
   } catch (err) {
     toast(err.message, 'error');
@@ -843,6 +1025,28 @@ async function fetchRapports() {
 }
 
 document.getElementById('btn-load-rapport').addEventListener('click', fetchRapports);
+
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  if (!lastRapport?.factures?.length) {
+    toast('Générez d\'abord un rapport pour exporter', 'warning');
+    return;
+  }
+  const debut = document.getElementById('rapp-start').value;
+  const fin   = document.getElementById('rapp-end').value;
+  const header = 'N° Facture,Date,Client,Chambre,Nuits,Sous-total,TVA,Total,Acompte,Reste,Mode paiement,Statut';
+  const rows = lastRapport.factures.map(f =>
+    [f.id, f.date, `"${f.clientNom || ''}"`, f.chambreId, f.nuits, f.sousTotal, f.tva, f.total, f.acompte, f.reste, f.modePaiement, f.statut].join(',')
+  );
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `rapport_ohinene_${debut}_${fin}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Export CSV téléchargé', 'success');
+});
 
 // ─── Offline detection ────────────────────────────────────────────────
 window.addEventListener('online',  () => { document.body.classList.remove('offline'); toast('Connexion rétablie', 'success'); });
@@ -864,11 +1068,15 @@ if ('serviceWorker' in navigator) {
 
 // ─── Boot ─────────────────────────────────────────────────────────────
 function initApp() {
-  // Mettre à jour UI avec infos utilisateur
   document.getElementById('sidebar-user-name').textContent = state.user?.nom || '—';
   document.getElementById('sidebar-user-role').textContent = state.user?.role || '';
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // Afficher l'onglet Sessions uniquement pour le directeur
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = state.user?.role === 'directeur' ? '' : 'none';
   });
 
   document.getElementById('login-screen').style.display = 'none';

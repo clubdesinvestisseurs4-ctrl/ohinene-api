@@ -53,16 +53,25 @@ router.get('/rapport', authenticateToken, async (req, res) => {
     const { debut, fin } = req.query;
     const snap = await db.collection('factures').get();
     const factures = snap.docs
-      .map(d => d.data())
+      .map(d => ({ id: d.id, ...d.data() }))
       .filter(f => (!debut || f.date >= debut) && (!fin || f.date <= fin));
 
     const total = factures.reduce((s, f) => s + (f.total || 0), 0);
     const parMode = {};
+    const parStatut = { payee: 0, partielle: 0 };
     factures.forEach(f => {
       parMode[f.modePaiement] = (parMode[f.modePaiement] || 0) + (f.total || 0);
+      parStatut[f.statut] = (parStatut[f.statut] || 0) + 1;
     });
 
-    res.json({ total, nombre: factures.length, moyenne: Math.round(total / (factures.length || 1)), parMode });
+    res.json({
+      total,
+      nombre: factures.length,
+      moyenne: Math.round(total / (factures.length || 1)),
+      parMode,
+      parStatut,
+      factures: factures.sort((a, b) => (b.date > a.date ? 1 : -1))
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
