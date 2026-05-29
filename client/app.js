@@ -630,13 +630,15 @@ async function loadFactures() {
     if (end)   params.set('dateEnd', end);
     if (params.toString()) path += '?' + params.toString();
 
+    const tbody = document.getElementById('factures-tbody');
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr>';
+
     state.factures = await api(path);
     let factures = state.factures;
     if (statut) factures = factures.filter(f => f.statut === statut);
 
-    const tbody = document.getElementById('factures-tbody');
     if (!factures.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Aucune facture</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px"><i class="fas fa-receipt"></i> Aucune facture trouvée — créez-en une via "Nouvelle facture"</td></tr>';
       return;
     }
     tbody.innerHTML = factures.map(f => `
@@ -658,6 +660,8 @@ async function loadFactures() {
       </tr>`).join('');
   } catch (err) {
     toast(err.message, 'error');
+    const tbody = document.getElementById('factures-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--danger);padding:24px"><i class="fas fa-exclamation-triangle"></i> Erreur : ${err.message}</td></tr>`;
   } finally {
     hideLoader();
   }
@@ -886,6 +890,8 @@ document.getElementById('btn-save-stock').addEventListener('click', async () => 
 // ─── Sessions ─────────────────────────────────────────────────────────
 async function loadSessions() {
   showLoader();
+  const tbody = document.getElementById('sessions-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:24px"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr>';
   try {
     const debut = document.getElementById('filter-sess-start').value;
     const fin   = document.getElementById('filter-sess-end').value;
@@ -946,6 +952,7 @@ async function loadSessions() {
     }).join('');
   } catch (err) {
     toast(err.message, 'error');
+    document.getElementById('sessions-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:24px"><i class="fas fa-exclamation-triangle"></i> Erreur : ${err.message}</td></tr>`;
   } finally {
     hideLoader();
   }
@@ -1019,6 +1026,8 @@ async function fetchRapports() {
 
   } catch (err) {
     toast(err.message, 'error');
+    const tbody = document.getElementById('rapport-factures-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:24px"><i class="fas fa-exclamation-triangle"></i> Erreur : ${err.message}</td></tr>`;
   } finally {
     hideLoader();
   }

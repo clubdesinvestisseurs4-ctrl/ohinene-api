@@ -41,7 +41,9 @@ const authLimiter = rateLimit({
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-app.use('/api/auth',         authLimiter, require('./routes/auth'));
+// authLimiter appliqué uniquement au login (anti brute-force)
+app.post('/api/auth/login', authLimiter);
+app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/chambres',     require('./routes/chambres'));
 app.use('/api/clients',      require('./routes/clients'));
 app.use('/api/reservations', require('./routes/reservations'));
