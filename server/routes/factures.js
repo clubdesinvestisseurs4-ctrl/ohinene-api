@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../firebase-admin');
 const { authenticateToken } = require('../middleware/auth');
+const { pushNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -79,6 +80,14 @@ router.post('/', authenticateToken, async (req, res) => {
       await db.collection('chambres').doc(reservation.chambreId).update({ statut: 'cleaning' });
     }
 
+    // Notification
+    pushNotification({
+      type: 'success', icon: 'file-invoice-dollar',
+      titre: 'Facture générée',
+      message: `${data.clientNom} – Ch. ${data.chambreId} – ${Number(data.total).toLocaleString('fr-FR')} FCA (${data.statut === 'payee' ? 'payée' : 'paiement partiel'})`,
+      createdBy: req.user.username,
+    });
+
     res.status(201).json({ id: ref.id, ...data });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -92,10 +101,20 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const ref = db.collection('factures').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Facture introuvable' });
+    const factureData = doc.data();
     const update = { statut: 'payee', reste: 0, updatedAt: new Date().toISOString() };
     if (modePaiement) update.modePaiement = modePaiement;
     await ref.update(update);
-    res.json({ id: req.params.id, ...doc.data(), ...update });
+
+    // Notification
+    pushNotification({
+      type: 'success', icon: 'check-circle',
+      titre: 'Facture payée',
+      message: `${factureData.clientNom || '—'} – Ch. ${factureData.chambreId} – ${Number(factureData.total || 0).toLocaleString('fr-FR')} FCA`,
+      createdBy: req.user.username,
+    });
+
+    res.json({ id: req.params.id, ...factureData, ...update });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -107,7 +126,17 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const ref = db.collection('factures').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Facture introuvable' });
+    const factureData = doc.data();
     await ref.delete();
+
+    // Notification
+    pushNotification({
+      type: 'warning', icon: 'trash',
+      titre: 'Facture supprimée',
+      message: `${factureData.clientNom || '—'} – ${Number(factureData.total || 0).toLocaleString('fr-FR')} FCA`,
+      createdBy: req.user.username,
+    });
+
     res.json({ message: 'Facture supprimée' });
   } catch (err) {
     res.status(500).json({ error: err.message });

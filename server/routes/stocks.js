@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../firebase-admin');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { pushNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -30,6 +31,15 @@ router.post('/', authenticateToken, requireRole('directeur', 'manager'), async (
       createdAt: new Date().toISOString()
     };
     const ref = await db.collection('stocks').add(data);
+
+    // Notification
+    pushNotification({
+      type: 'success', icon: 'plus-circle',
+      titre: 'Article de stock ajouté',
+      message: `${data.nom} – ${data.quantite} ${data.unite} (min. ${data.minimum})`,
+      createdBy: req.user.username,
+    });
+
     res.status(201).json({ id: ref.id, ...data });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -39,10 +49,26 @@ router.post('/', authenticateToken, requireRole('directeur', 'manager'), async (
 // PUT /api/stocks/:id
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
+    const docRef = db.collection('stocks').doc(req.params.id);
+    const doc = await docRef.get();
+
     const update = { ...req.body, updatedAt: new Date().toISOString() };
     delete update.id;
     if (update.quantite !== undefined) update.quantite = Number(update.quantite);
-    await db.collection('stocks').doc(req.params.id).update(update);
+    await docRef.update(update);
+
+    // Notification
+    const existing = doc.exists ? doc.data() : {};
+    const nom      = update.nom      || existing.nom      || req.params.id;
+    const quantite = update.quantite !== undefined ? update.quantite : existing.quantite;
+    const unite    = update.unite    || existing.unite    || '';
+    pushNotification({
+      type: 'info', icon: 'boxes',
+      titre: 'Stock mis à jour',
+      message: `${nom} – ${quantite} ${unite}`,
+      createdBy: req.user.username,
+    });
+
     res.json({ id: req.params.id, ...update });
   } catch (err) {
     res.status(500).json({ error: err.message });

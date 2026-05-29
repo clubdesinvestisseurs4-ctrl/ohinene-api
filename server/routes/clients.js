@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../firebase-admin');
 const { authenticateToken } = require('../middleware/auth');
+const { pushNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -36,6 +37,15 @@ router.post('/', authenticateToken, async (req, res) => {
       createdAt: new Date().toISOString()
     };
     const ref = await db.collection('clients').add(data);
+
+    // Notification
+    pushNotification({
+      type: 'info', icon: 'user-plus',
+      titre: 'Nouveau client enregistré',
+      message: `${data.nom} ${data.prenom} – Tél : ${data.tel}`,
+      createdBy: req.user.username,
+    });
+
     res.status(201).json({ id: ref.id, ...data });
   } catch (err) {
     res.status(500).json({ error: err.message });

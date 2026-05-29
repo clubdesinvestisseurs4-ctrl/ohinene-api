@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../firebase-admin');
 const { authenticateToken } = require('../middleware/auth');
+const { pushNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -62,9 +63,18 @@ router.post('/', authenticateToken, async (req, res) => {
     };
 
     const ref = await db.collection('reservations').add(data);
-
-    // Mettre à jour statut chambre
     await db.collection('chambres').doc(chambreId).update({ statut: 'reserved' });
+
+    // Notification (non bloquante)
+    db.collection('clients').doc(clientId).get().then(cDoc => {
+      const clientNom = cDoc.exists ? `${cDoc.data().nom} ${cDoc.data().prenom}` : '—';
+      pushNotification({
+        type: 'success', icon: 'calendar-plus',
+        titre: 'Nouvelle réservation',
+        message: `Ch. ${chambreId} – ${clientNom} (${arrivee} → ${depart}, ${nuits} nuit${nuits > 1 ? 's' : ''})`,
+        createdBy: req.user.username,
+      });
+    }).catch(() => {});
 
     res.status(201).json({ id: ref.id, ...data });
   } catch (err) {
@@ -97,6 +107,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
           visites: (reservation.visites || 0) + 1
         });
       }
+    }
+
+    // Notification selon le statut
+    const notifMap = {
+      'checked-in':  { type: 'info',    icon: 'sign-in-alt',  titre: 'Check-in effectué'   },
+      'checked-out': { type: 'warning', icon: 'sign-out-alt', titre: 'Check-out effectué'  },
+      'annulee':     { type: 'danger',  icon: 'times-circle', titre: 'Réservation annulée' },
+    };
+
+    if (notifMap[statut]) {
+      db.collection('clients').doc(reservation.clientId).get().then(cDoc => {
+        const clientNom = cDoc.exists ? `${cDoc.data().nom} ${cDoc.data().prenom}` : '—';
+        pushNotification({
+          ...notifMap[statut],
+          message: `Ch. ${reservation.chambreId} – ${clientNom}`,
+          createdBy: req.user.username,
+        });
+      }).catch(() => {});
     }
 
     res.json({ id: req.params.id, ...update });

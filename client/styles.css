@@ -645,6 +645,15 @@ body {
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.notif-time {
+  font-size:.73rem;
+  color:#aaa;
+  margin-top:3px;
+}
+.notif-item.unread {
+  background:#f0f7ff;
+  border-left:3px solid var(--primary);
+}
 
 /* ── Offline banner ──────────────────────────────────────────────── */
 .offline-banner {

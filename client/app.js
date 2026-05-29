@@ -11,6 +11,8 @@ const API_BASE = window.location.hostname === 'localhost'
   : 'https://ohinene-api.onrender.com/api';
 
 // ─── State ──────────────────────────────────────────────────────────
+let notifPollInterval = null;
+
 const state = {
   token:        localStorage.getItem('ohinene_token') || null,
   user:         JSON.parse(localStorage.getItem('ohinene_user') || 'null'),
@@ -86,6 +88,7 @@ async function login(username, password) {
 
 async function logout() {
   try { await api('/auth/logout', { method: 'POST' }); } catch (_) {}
+  if (notifPollInterval) { clearInterval(notifPollInterval); notifPollInterval = null; }
   state.token = null;
   state.user  = null;
   localStorage.removeItem('ohinene_token');
@@ -176,13 +179,6 @@ async function loadDashboard() {
     document.getElementById('stat-clients').textContent    = stats.clientsPresents;
     document.getElementById('stat-revenue').textContent    = fmtCurrency(stats.revenusJour);
     document.getElementById('stat-alertes').textContent    = stats.alertes;
-
-    // Notification badge
-    if (stats.alertes > 0) {
-      const badge = document.getElementById('notif-badge');
-      badge.textContent = stats.alertes;
-      badge.style.display = '';
-    }
 
     // Room mini grid
     const grid = document.getElementById('dash-room-grid');
@@ -961,38 +957,54 @@ async function loadSessions() {
 document.getElementById('btn-filter-sessions').addEventListener('click', loadSessions);
 
 // ─── Notifications (cloche) ───────────────────────────────────────────
-async function loadNotifications() {
-  const list = document.getElementById('notif-list');
-  list.innerHTML = '<div class="notif-loading"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>';
+async function pollNotifBadge() {
+  if (state.user?.role !== 'directeur') return;
   try {
-    const notifications = await api('/stats/notifications');
-
-    // Mettre à jour le badge
+    const notifications = await api('/notifications');
+    const unread = notifications.filter(n => !n.lu).length;
     const badge = document.getElementById('notif-badge');
-    if (notifications.length > 0) {
-      badge.textContent = notifications.length;
+    if (unread > 0) {
+      badge.textContent = unread > 99 ? '99+' : unread;
       badge.style.display = '';
     } else {
       badge.style.display = 'none';
     }
+  } catch (_) {}
+}
+
+async function loadNotifications() {
+  const list = document.getElementById('notif-list');
+  list.innerHTML = '<div class="notif-loading"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>';
+  try {
+    const notifications = await api('/notifications');
+
+    // Réinitialiser badge et marquer tout comme lu
+    document.getElementById('notif-badge').style.display = 'none';
+    api('/notifications/read', { method: 'PATCH' }).catch(() => {});
 
     if (!notifications.length) {
       list.innerHTML = `
         <div class="notif-empty">
           <i class="fas fa-check-circle"></i>
-          Tout est en ordre, aucune alerte !
+          Aucune activité récente
         </div>`;
       return;
     }
 
+    const fmtDt = s => {
+      const d = new Date(s);
+      return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    };
+
     list.innerHTML = notifications.map(n => `
-      <div class="notif-item">
+      <div class="notif-item${n.lu ? '' : ' unread'}">
         <div class="notif-icon ${n.type}">
           <i class="fas fa-${n.icon}"></i>
         </div>
         <div class="notif-body">
-          <div class="notif-title">${n.title}</div>
+          <div class="notif-title">${n.titre}</div>
           <div class="notif-message" title="${n.message}">${n.message}</div>
+          <div class="notif-time">${fmtDt(n.createdAt)}</div>
         </div>
       </div>`).join('');
   } catch (err) {
@@ -1150,6 +1162,18 @@ function initApp() {
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = state.user?.role === 'directeur' ? 'flex' : 'none';
   });
+
+  // Cloche notifications : directeur uniquement
+  const notifWrapper = document.querySelector('.notif-wrapper');
+  if (notifWrapper) notifWrapper.style.display = state.user?.role === 'directeur' ? '' : 'none';
+
+  // Polling badge toutes les 60 secondes pour le directeur
+  if (state.user?.role === 'directeur') {
+    pollNotifBadge();
+    if (!notifPollInterval) {
+      notifPollInterval = setInterval(pollNotifBadge, 60000);
+    }
+  }
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display   = 'flex';
