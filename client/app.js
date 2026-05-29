@@ -8,7 +8,7 @@
 // À remplacer par votre URL Render en production
 const API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:3001/api'
-  : 'https://hotel-ohinene-api.onrender.com/api';  // ← remplacer par votre URL Render
+  : 'https://hotel-ohinene-api.onrender.com/api';
 
 // ─── State ──────────────────────────────────────────────────────────
 const state = {
