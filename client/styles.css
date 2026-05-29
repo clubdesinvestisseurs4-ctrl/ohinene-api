@@ -3,19 +3,21 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --primary:      #1a5f7a;
-  --primary-dark: #0d3d4d;
-  --primary-light:#e8f4f8;
-  --secondary:    #57c5b6;
-  --accent:       #ff6b35;
+  /* ── Charte graphique Hôtel Ohinene ── */
+  --primary:      #003366;  /* Bleu marine officiel     */
+  --primary-dark: #002244;  /* Bleu marine foncé        */
+  --primary-light:#dce8f7;  /* Teinte bleu légère       */
+  --secondary:    #0d472f;  /* Vert forêt officiel      */
+  --accent:       #ddab3e;  /* Or officiel              */
+  /* ── Couleurs fonctionnelles ── */
   --success:      #2ecc71;
   --warning:      #f39c12;
   --danger:       #e74c3c;
-  --dark:         #2c3e50;
-  --light:        #ecf0f1;
+  --dark:         #1e2a38;
+  --light:        #eef1f5;
   --white:        #ffffff;
-  --gray:         #95a5a6;
-  --gray-light:   #f8f9fa;
+  --gray:         #7f8c9a;
+  --gray-light:   #f4f6f9;
   --shadow:       0 2px 12px rgba(0,0,0,.09);
   --shadow-md:    0 4px 24px rgba(0,0,0,.13);
   --radius:       10px;
@@ -453,7 +455,7 @@ body {
 }
 .form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(26,95,122,.1); }
+.form-group textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,51,102,.12); }
 .form-row { display:flex; gap:14px; }
 .form-row .form-group { flex:1; }
 .form-hint { font-size:.78rem; color:var(--gray); margin-top:4px; }
